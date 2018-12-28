@@ -12,21 +12,21 @@ use tracetree::ProcessTree;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];
-    let string =
-        serde_json::to_string_pretty(&ProcessTree::spawn(Command::new(path), &args).unwrap())
-            .unwrap();
+    let process_tree = ProcessTree::spawn(Command::new(path), &args).unwrap();
+    let string = serde_json::to_string_pretty(&process_tree).unwrap();
     let result: Value = serde_json::from_str(&string).unwrap();
-    let first = result
+    Ok(result
         .get("children")
-        .unwrap()
+        .ok_or("no field children")?
         .get(0)
-        .unwrap()
+        .ok_or("no child")?
         .get("cmdline")
-        .unwrap()
+        .ok_or("no field cmdline")?
         .get(0)
-        .unwrap()
-        .as_str();
-    Ok(first.unwrap().to_string())
+        .ok_or("no cmdline entries")?
+        .as_str()
+        .ok_or("not a string")?
+        .to_string())
 }
 
 #[cfg(test)]

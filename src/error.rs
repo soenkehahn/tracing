@@ -3,7 +3,7 @@ use std::fmt::Debug;
 pub type AppResult<A> = Result<A, AppError>;
 
 #[derive(Debug, PartialEq)]
-pub struct AppError(String);
+pub struct AppError(pub String);
 
 macro_rules! bless {
     ( $error_type:ty ) => {
@@ -16,7 +16,6 @@ macro_rules! bless {
 }
 
 bless!(&str);
-bless!(serde_json::Error);
 bless!(std::io::Error);
 bless!(nix::Error);
 bless!(String);

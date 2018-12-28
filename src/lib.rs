@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "ci", deny(warnings))]
+
 extern crate serde_json;
 extern crate tracetree;
 

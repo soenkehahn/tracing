@@ -23,7 +23,7 @@ bless!(String);
 pub trait ChainErr {
     type Result;
 
-    fn chain_err(self, message: fn() -> &'static str) -> AppResult<Self::Result>;
+    fn chain_err(self, message: &'static str) -> AppResult<Self::Result>;
 }
 
 impl<A, Error> ChainErr for Result<A, Error>
@@ -32,10 +32,10 @@ where
 {
     type Result = A;
 
-    fn chain_err(self, message: fn() -> &'static str) -> AppResult<Self::Result> {
+    fn chain_err(self, message: &'static str) -> AppResult<Self::Result> {
         match self {
             Ok(a) => Ok(a),
-            Err(error) => Err(AppError(format!("{}: {:?}", message(), error))),
+            Err(error) => Err(AppError(format!("{}: {:?}", message, error))),
         }
     }
 }

@@ -9,7 +9,7 @@ extern crate nix;
 extern crate serde;
 extern crate spawn_ptrace;
 
-use crate::error::{AppResult, ChainErr};
+use crate::error::{bail, AppResult, ChainErr};
 use chrono::{DateTime, Duration, Local};
 pub use indextree::NodeEdge;
 use indextree::{Arena, NodeId};
@@ -137,9 +137,10 @@ impl ProcessTree {
                                     arena[child].data.cmdline = cmdline;
                                     parent.append(child, &mut arena);
                                 }
-                                None => {
-                                    bail!("Got an {:?} event for unknown parent pid {}", event, pid)
-                                }
+                                None => bail(format!(
+                                    "Got an {:?} event for unknown parent pid {}",
+                                    event, pid
+                                ))?,
                             }
                         }
                         PTRACE_EVENT_EXEC => {
@@ -162,7 +163,7 @@ impl ProcessTree {
                                         })
                                         .chain_err(|| "Couldn't read cmdline")?;
                                 }
-                                None => bail!("Got an exec event for unknown pid {}", pid),
+                                None => bail(format!("Got an exec event for unknown pid {}", pid))?,
                             }
                         }
                         _ => panic!("Unexpected ptrace event: {:?}", event),
@@ -182,7 +183,7 @@ impl ProcessTree {
                     };
                     continue_process(pid, continue_sig).chain_err(|| "Error continuing process")?;
                 }
-                Ok(s) => bail!("Unexpected process status: {:?}", s),
+                Ok(s) => bail(format!("Unexpected process status: {:?}", s))?,
                 Err(e) => {
                     match e {
                         nix::Error::Sys(nix::Errno::EINTR) => {
@@ -193,7 +194,7 @@ impl ProcessTree {
                             }
                              */
                         }
-                        _ => bail!("ptrace error: {:?}", e),
+                        _ => bail(format!("ptrace error: {:?}", e))?,
                     }
                 }
             }

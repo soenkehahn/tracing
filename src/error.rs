@@ -40,3 +40,7 @@ where
         }
     }
 }
+
+pub fn bail<A>(message: String) -> AppResult<A> {
+    Err(AppError(message))
+}

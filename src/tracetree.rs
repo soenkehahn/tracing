@@ -57,19 +57,19 @@ impl ProcessTree {
     where
         T: AsRef<str>,
     {
-        let child = cmd.spawn_ptrace().chain_err(|| "Error spawning process")?;
+        let child = cmd.spawn_ptrace().chain_err("Error spawning process")?;
         let pid = child.id() as pid_t;
         trace!("Spawned process {}", pid);
         ptrace_setoptions(
             pid,
             PTRACE_O_TRACEEXEC | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE,
         )
-        .chain_err(|| "Error setting ptrace options")?;
+        .chain_err("Error setting ptrace options")?;
         let mut arena = Arena::new();
         let mut pids = HashMap::new();
         let root = get_or_insert_pid(pid, &mut arena, &mut pids);
         arena[root].data.cmdline = cmdline.iter().map(|s| s.as_ref().to_string()).collect();
-        continue_process(pid, None).chain_err(|| "Error continuing process")?;
+        continue_process(pid, None).chain_err("Error continuing process")?;
         loop {
             if !root.descendants(&arena).any(|node| !arena[node].data.ended) {
                 break;
@@ -95,7 +95,7 @@ impl ProcessTree {
                                 ptr::null_mut(),
                                 &mut new_pid as *mut pid_t as *mut c_void,
                             )
-                            .chain_err(|| "Failed to get pid of forked process")?;
+                            .chain_err("Failed to get pid of forked process")?;
                             let name = match event {
                                 PTRACE_EVENT_FORK => "fork",
                                 PTRACE_EVENT_VFORK => "vfork",
@@ -141,14 +141,14 @@ impl ProcessTree {
                                             arena[node].data.cmdline = cmdline;
                                             Ok(())
                                         })
-                                        .chain_err(|| "Couldn't read cmdline")?;
+                                        .chain_err("Couldn't read cmdline")?;
                                 }
                                 None => bail(format!("Got an exec event for unknown pid {}", pid))?,
                             }
                         }
                         _ => panic!("Unexpected ptrace event: {:?}", event),
                     }
-                    continue_process(pid, None).chain_err(|| "Error continuing process")?;
+                    continue_process(pid, None).chain_err("Error continuing process")?;
                 }
                 Ok(WaitStatus::Stopped(pid, sig)) => {
                     trace!("[{}] stopped with {:?}", pid, sig);
@@ -161,7 +161,7 @@ impl ProcessTree {
                     } else {
                         Some(sig)
                     };
-                    continue_process(pid, continue_sig).chain_err(|| "Error continuing process")?;
+                    continue_process(pid, continue_sig).chain_err("Error continuing process")?;
                 }
                 Ok(s) => bail(format!("Unexpected process status: {:?}", s))?,
                 Err(e) => {

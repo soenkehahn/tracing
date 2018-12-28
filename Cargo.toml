@@ -5,7 +5,6 @@ authors = ["Sönke Hahn <soenkehahn@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-chrono = { version = "0.3", features = ["serde"] }
 indextree = "1.0.1"
 libc = "0.2.21"
 log = "0.3.6"

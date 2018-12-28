@@ -61,7 +61,6 @@ impl Default for ProcessInfo {
 /// A tree of processes.
 pub struct ProcessTree {
     arena: Arena<ProcessInfo>,
-    pids: HashMap<pid_t, NodeId>,
     root: NodeId,
     started: DateTime<Local>,
 }
@@ -201,43 +200,9 @@ impl ProcessTree {
         }
         Ok(ProcessTree {
             arena: arena,
-            pids: pids,
             root: root,
             started: started,
         })
-    }
-
-    /// Iterate over processes in the tree in tree order.
-    pub fn traverse<'a>(&'a self) -> Traverse<'a> {
-        Traverse {
-            inner: self.root.traverse(&self.arena),
-            arena: &self.arena,
-        }
-    }
-
-    /// Look up a process in the tree by pid.
-    pub fn get(&self, pid: pid_t) -> Option<&ProcessInfo> {
-        match self.pids.get(&pid) {
-            None => None,
-            Some(&node) => Some(&self.arena[node].data),
-        }
-    }
-}
-
-pub struct Traverse<'a> {
-    inner: indextree::Traverse<'a, ProcessInfo>,
-    arena: &'a Arena<ProcessInfo>,
-}
-
-impl<'a> Iterator for Traverse<'a> {
-    type Item = NodeEdge<&'a ProcessInfo>;
-
-    fn next(&mut self) -> Option<NodeEdge<&'a ProcessInfo>> {
-        match self.inner.next() {
-            None => None,
-            Some(NodeEdge::Start(node)) => Some(NodeEdge::Start(&self.arena[node].data)),
-            Some(NodeEdge::End(node)) => Some(NodeEdge::End(&self.arena[node].data)),
-        }
     }
 }
 

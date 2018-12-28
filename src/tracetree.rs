@@ -10,7 +10,7 @@ extern crate serde;
 extern crate spawn_ptrace;
 
 use crate::error::{bail, AppResult, ChainErr};
-use chrono::{DateTime, Duration, Local};
+use chrono::{DateTime, Local};
 pub use indextree::NodeEdge;
 use indextree::{Arena, NodeId};
 use libc::{c_long, pid_t};
@@ -33,17 +33,10 @@ use std::fs::File;
 use std::io::Read;
 use std::process::Command;
 use std::ptr;
-use std::time::Instant;
 
-/// Information about a spawned process.
 pub struct ProcessInfo {
-    /// The process ID.
     pub pid: pid_t,
-    /// When the process was started.
-    pub started: Instant,
-    /// When the process ended, or `None` if it is still running.
-    pub ended: Option<Instant>,
-    /// The commandline with which this process was executed.
+    pub ended: bool,
     pub cmdline: Vec<String>,
 }
 
@@ -51,14 +44,12 @@ impl Default for ProcessInfo {
     fn default() -> ProcessInfo {
         ProcessInfo {
             pid: 0,
-            started: Instant::now(),
-            ended: None,
+            ended: false,
             cmdline: vec![],
         }
     }
 }
 
-/// A tree of processes.
 pub struct ProcessTree {
     arena: Arena<ProcessInfo>,
     root: NodeId,
@@ -66,8 +57,6 @@ pub struct ProcessTree {
 }
 
 impl ProcessTree {
-    /// Execute `cmd`, tracking all child processes it spawns, and return a `ProcessTree` listing
-    /// them.
     pub fn spawn<T>(mut cmd: Command, cmdline: &[T]) -> AppResult<ProcessTree>
     where
         T: AsRef<str>,
@@ -76,7 +65,6 @@ impl ProcessTree {
         let child = cmd.spawn_ptrace().chain_err(|| "Error spawning process")?;
         let pid = child.id() as pid_t;
         trace!("Spawned process {}", pid);
-        // Setup our ptrace options
         ptrace_setoptions(
             pid,
             PTRACE_O_TRACEEXEC | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE,
@@ -90,7 +78,7 @@ impl ProcessTree {
         loop {
             if !root
                 .descendants(&arena)
-                .any(|node| arena[node].data.ended.is_none())
+                .any(|node| arena[node].data.ended == false)
             {
                 break;
             }
@@ -98,12 +86,12 @@ impl ProcessTree {
                 Ok(WaitStatus::Exited(pid, ret)) => {
                     trace!("Process {} exited with status {}", pid, ret);
                     let node = get_or_insert_pid(pid, &mut arena, &mut pids);
-                    arena[node].data.ended = Some(Instant::now());
+                    arena[node].data.ended = true;
                 }
                 Ok(WaitStatus::Signaled(pid, sig, _)) => {
                     trace!("Process {} exited with signal {:?}", pid, sig);
                     let node = get_or_insert_pid(pid, &mut arena, &mut pids);
-                    arena[node].data.ended = Some(Instant::now());
+                    arena[node].data.ended = true;
                 }
                 Ok(WaitStatus::PtraceEvent(pid, _sig, event)) => {
                     match event {
@@ -207,13 +195,8 @@ impl ProcessTree {
     }
 }
 
-struct ProcessInfoSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, Instant, DateTime<Local>);
-struct ChildrenSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, Instant, DateTime<Local>);
-
-fn dt(a: Instant, b: Instant, c: DateTime<Local>) -> String {
-    let d = c + Duration::from_std(a - b).unwrap();
-    d.to_rfc3339()
-}
+struct ProcessInfoSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, DateTime<Local>);
+struct ChildrenSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, DateTime<Local>);
 
 impl<'a> Serialize for ProcessInfoSerializable<'a> {
     fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
@@ -224,14 +207,10 @@ impl<'a> Serialize for ProcessInfoSerializable<'a> {
         {
             let info = &self.1[self.0].data;
             state.serialize_field("pid", &info.pid)?;
-            state.serialize_field("started", &dt(info.started, self.2, self.3))?;
-            state.serialize_field("ended", &info.ended.map(|i| dt(i, self.2, self.3)))?;
+            state.serialize_field("ended", &info.ended)?;
             state.serialize_field("cmdline", &info.cmdline)?;
         }
-        state.serialize_field(
-            "children",
-            &ChildrenSerializable(self.0, self.1, self.2, self.3),
-        )?;
+        state.serialize_field("children", &ChildrenSerializable(self.0, self.1, self.2))?;
         state.end()
     }
 }
@@ -244,7 +223,7 @@ impl<'a> Serialize for ChildrenSerializable<'a> {
         let len = self.0.children(self.1).count();
         let mut seq = serializer.serialize_seq(Some(len))?;
         for c in self.0.children(self.1) {
-            seq.serialize_element(&ProcessInfoSerializable(c, self.1, self.2, self.3))?;
+            seq.serialize_element(&ProcessInfoSerializable(c, self.1, self.2))?;
         }
         seq.end()
     }
@@ -255,8 +234,7 @@ impl Serialize for ProcessTree {
     where
         S: Serializer,
     {
-        let started = self.arena[self.root].data.started;
-        let root_pi = ProcessInfoSerializable(self.root, &self.arena, started, self.started);
+        let root_pi = ProcessInfoSerializable(self.root, &self.arena, self.started);
         root_pi.serialize(serializer)
     }
 }

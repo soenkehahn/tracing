@@ -10,5 +10,5 @@ install:
 
 script:
   - cargo build --features=ci
-  - cargo test --features=ci
+  - cargo test --features=ci -- --test-threads=1
   - cargo fmt -- --check

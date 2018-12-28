@@ -6,8 +6,6 @@ edition = "2018"
 
 [dependencies]
 chrono = { version = "0.3", features = ["serde"] }
-clap = "2.25.0"
-env_logger = "0.3.5"
 error-chain = "0.10.0"
 indextree = "1.0.1"
 libc = "0.2.21"

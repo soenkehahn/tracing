@@ -5,6 +5,9 @@ rust:
 
 cache: cargo
 
+install:
+  - rustup component add rustfmt
+
 script:
   - cargo build --features=ci
   - cargo test --features=ci

@@ -1,0 +1,11 @@
+language: rust
+
+rust:
+  - stable
+
+cache: cargo
+
+script:
+  - cargo build --features=ci
+  - cargo test --features=ci
+  - cargo fmt -- --check

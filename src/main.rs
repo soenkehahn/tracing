@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "ci", deny(warnings))]
+
 use tracing::trace;
 
 fn main() {

@@ -199,9 +199,9 @@ impl ProcessTree {
             }
         }
         Ok(ProcessTree {
-            arena: arena,
-            root: root,
-            started: started,
+            arena,
+            root,
+            started,
         })
     }
 }
@@ -267,7 +267,7 @@ fn get_or_insert_pid(
 ) -> NodeId {
     *map.entry(pid).or_insert_with(|| {
         arena.new_node(ProcessInfo {
-            pid: pid,
+            pid,
             ..ProcessInfo::default()
         })
     })

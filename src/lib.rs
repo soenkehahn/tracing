@@ -12,9 +12,9 @@ use tracetree::ProcessTree;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];
-    let process_tree = ProcessTree::spawn(Command::new(path), &args).unwrap();
-    let string = serde_json::to_string_pretty(&process_tree).unwrap();
-    let result: Value = serde_json::from_str(&string).unwrap();
+    let process_tree = ProcessTree::spawn(Command::new(path), &args)?;
+    let string = serde_json::to_string_pretty(&process_tree)?;
+    let result: Value = serde_json::from_str(&string)?;
     Ok(result
         .get("children")
         .ok_or("no field children")?

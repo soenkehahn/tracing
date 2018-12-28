@@ -8,20 +8,14 @@ pub mod error;
 mod tracetree;
 
 use self::error::AppResult;
-use self::tracetree::{ProcessInfo, ProcessTree};
-use indextree::Node;
+use self::tracetree::ProcessTree;
 use std::process::Command;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];
     let process_tree = ProcessTree::spawn(Command::new(path), &args)?;
-    let mut process_iterator = process_tree.arena.iter();
-    process_iterator.next();
-    let cmdlines: Vec<String> = process_iterator
-        .map(|node: &Node<ProcessInfo>| node.data.cmdline.clone())
-        .flatten()
-        .collect();
-    Ok(cmdlines[0].clone())
+    let descendants = process_tree.get_descendants();
+    Ok(descendants[0].clone())
 }
 
 #[cfg(test)]

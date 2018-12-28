@@ -52,7 +52,7 @@ impl Default for ProcessInfo {
 #[derive(Debug)]
 pub struct ProcessTree {
     pub arena: Arena<ProcessInfo>,
-    root: NodeId,
+    pub root: NodeId,
 }
 
 impl ProcessTree {
@@ -186,6 +186,14 @@ impl ProcessTree {
             }
         }
         Ok(ProcessTree { arena, root })
+    }
+
+    pub fn get_descendants(self) -> Vec<String> {
+        self.root
+            .descendants(&self.arena)
+            .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.cmdline.clone())
+            .flatten()
+            .collect()
     }
 }
 

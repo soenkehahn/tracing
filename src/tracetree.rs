@@ -2,15 +2,12 @@
 // commit 587eaaa90ad2469b37a6a8568e024276e99e11dc,
 // under the license in ./tracetree.rs.license
 
-extern crate chrono;
 extern crate indextree;
 extern crate libc;
 extern crate nix;
-extern crate serde;
 extern crate spawn_ptrace;
 
 use crate::error::{bail, AppResult, ChainErr};
-use chrono::{DateTime, Local};
 pub use indextree::NodeEdge;
 use indextree::{Arena, NodeId};
 use libc::{c_long, pid_t};
@@ -25,8 +22,6 @@ use nix::sys::ptrace::ptrace::{
 use nix::sys::ptrace::{ptrace, ptrace_setoptions};
 use nix::sys::signal;
 use nix::sys::wait::{waitpid, WaitStatus};
-use serde::ser::{SerializeSeq, SerializeStruct};
-use serde::{Serialize, Serializer};
 use spawn_ptrace::CommandPtraceSpawn;
 use std::collections::HashMap;
 use std::fs::File;
@@ -34,6 +29,7 @@ use std::io::Read;
 use std::process::Command;
 use std::ptr;
 
+#[derive(Debug)]
 pub struct ProcessInfo {
     pub pid: pid_t,
     pub ended: bool,
@@ -50,10 +46,10 @@ impl Default for ProcessInfo {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcessTree {
-    arena: Arena<ProcessInfo>,
-    root: NodeId,
-    started: DateTime<Local>,
+    pub arena: Arena<ProcessInfo>,
+    pub root: NodeId,
 }
 
 impl ProcessTree {
@@ -61,7 +57,6 @@ impl ProcessTree {
     where
         T: AsRef<str>,
     {
-        let started = Local::now();
         let child = cmd.spawn_ptrace().chain_err(|| "Error spawning process")?;
         let pid = child.id() as pid_t;
         trace!("Spawned process {}", pid);
@@ -184,55 +179,15 @@ impl ProcessTree {
                 }
             }
         }
-        Ok(ProcessTree {
-            arena,
-            root,
-            started,
-        })
+        Ok(ProcessTree { arena, root })
     }
-}
 
-struct ProcessInfoSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, DateTime<Local>);
-struct ChildrenSerializable<'a>(NodeId, &'a Arena<ProcessInfo>, DateTime<Local>);
-
-impl<'a> Serialize for ProcessInfoSerializable<'a> {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("ProcessInfo", 5)?;
-        {
-            let info = &self.1[self.0].data;
-            state.serialize_field("pid", &info.pid)?;
-            state.serialize_field("ended", &info.ended)?;
-            state.serialize_field("cmdline", &info.cmdline)?;
-        }
-        state.serialize_field("children", &ChildrenSerializable(self.0, self.1, self.2))?;
-        state.end()
-    }
-}
-
-impl<'a> Serialize for ChildrenSerializable<'a> {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let len = self.0.children(self.1).count();
-        let mut seq = serializer.serialize_seq(Some(len))?;
-        for c in self.0.children(self.1) {
-            seq.serialize_element(&ProcessInfoSerializable(c, self.1, self.2))?;
-        }
-        seq.end()
-    }
-}
-
-impl Serialize for ProcessTree {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let root_pi = ProcessInfoSerializable(self.root, &self.arena, self.started);
-        root_pi.serialize(serializer)
+    pub fn get_descendants(self) -> Vec<String> {
+        self.root
+            .descendants(&self.arena)
+            .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.cmdline.clone())
+            .flatten()
+            .collect()
     }
 }
 

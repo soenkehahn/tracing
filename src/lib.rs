@@ -2,33 +2,19 @@
 
 #[macro_use]
 extern crate log;
-extern crate serde_json;
 
 pub mod error;
 mod tracetree;
 
 use self::error::AppResult;
 use self::tracetree::ProcessTree;
-use serde_json::Value;
 use std::process::Command;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];
     let process_tree = ProcessTree::spawn(Command::new(path), &args)?;
-    let string = serde_json::to_string_pretty(&process_tree)?;
-    let result: Value = serde_json::from_str(&string)?;
-    Ok(result
-        .get("children")
-        .ok_or("no field children")?
-        .get(0)
-        .ok_or("no child")?
-        .get("cmdline")
-        .ok_or("no field cmdline")?
-        .get(0)
-        .ok_or("no cmdline entries")?
-        .as_str()
-        .ok_or("not a string")?
-        .to_string())
+    let descendants = process_tree.get_descendants();
+    Ok(descendants[0].clone())
 }
 
 #[cfg(test)]

@@ -76,10 +76,7 @@ impl ProcessTree {
         arena[root].data.cmdline = cmdline.iter().map(|s| s.as_ref().to_string()).collect();
         continue_process(pid, None).chain_err(|| "Error continuing process")?;
         loop {
-            if !root
-                .descendants(&arena)
-                .any(|node| arena[node].data.ended == false)
-            {
+            if !root.descendants(&arena).any(|node| !arena[node].data.ended) {
                 break;
             }
             match waitpid(-1, None) {

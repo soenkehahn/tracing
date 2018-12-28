@@ -3,20 +3,13 @@
 // under the license in ./tracetree.rs.license
 
 extern crate chrono;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate error_chain;
 extern crate indextree;
 extern crate libc;
 extern crate nix;
 extern crate serde;
 extern crate spawn_ptrace;
 
-mod errors;
-
-pub use errors::*;
-
+use crate::error::{AppResult, ChainErr};
 use chrono::{DateTime, Duration, Local};
 pub use indextree::NodeEdge;
 use indextree::{Arena, NodeId};
@@ -76,7 +69,7 @@ pub struct ProcessTree {
 impl ProcessTree {
     /// Execute `cmd`, tracking all child processes it spawns, and return a `ProcessTree` listing
     /// them.
-    pub fn spawn<T>(mut cmd: Command, cmdline: &[T]) -> Result<ProcessTree>
+    pub fn spawn<T>(mut cmd: Command, cmdline: &[T]) -> AppResult<ProcessTree>
     where
         T: AsRef<str>,
     {

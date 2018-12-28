@@ -1,14 +1,18 @@
 #![cfg_attr(feature = "ci", deny(warnings))]
 
+#[macro_use]
+extern crate error_chain;
+#[macro_use]
+extern crate log;
 extern crate serde_json;
-extern crate tracetree;
 
 pub mod error;
+mod tracetree;
 
 use self::error::AppResult;
+use self::tracetree::ProcessTree;
 use serde_json::Value;
 use std::process::Command;
-use tracetree::ProcessTree;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];

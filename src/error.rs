@@ -16,7 +16,6 @@ macro_rules! bless {
 }
 
 bless!(&str);
-bless!(serde_json::Error);
 bless!(std::io::Error);
 bless!(nix::Error);
 bless!(String);

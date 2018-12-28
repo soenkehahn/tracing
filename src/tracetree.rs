@@ -5,7 +5,6 @@
 extern crate indextree;
 extern crate libc;
 extern crate nix;
-extern crate serde;
 extern crate spawn_ptrace;
 
 use crate::error::{bail, AppResult, ChainErr};
@@ -23,8 +22,6 @@ use nix::sys::ptrace::ptrace::{
 use nix::sys::ptrace::{ptrace, ptrace_setoptions};
 use nix::sys::signal;
 use nix::sys::wait::{waitpid, WaitStatus};
-use serde::ser::{SerializeSeq, SerializeStruct};
-use serde::{Serialize, Serializer};
 use spawn_ptrace::CommandPtraceSpawn;
 use std::collections::HashMap;
 use std::fs::File;
@@ -194,50 +191,6 @@ impl ProcessTree {
             .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.cmdline.clone())
             .flatten()
             .collect()
-    }
-}
-
-struct ProcessInfoSerializable<'a>(NodeId, &'a Arena<ProcessInfo>);
-struct ChildrenSerializable<'a>(NodeId, &'a Arena<ProcessInfo>);
-
-impl<'a> Serialize for ProcessInfoSerializable<'a> {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("ProcessInfo", 5)?;
-        {
-            let info = &self.1[self.0].data;
-            state.serialize_field("pid", &info.pid)?;
-            state.serialize_field("ended", &info.ended)?;
-            state.serialize_field("cmdline", &info.cmdline)?;
-        }
-        state.serialize_field("children", &ChildrenSerializable(self.0, self.1))?;
-        state.end()
-    }
-}
-
-impl<'a> Serialize for ChildrenSerializable<'a> {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let len = self.0.children(self.1).count();
-        let mut seq = serializer.serialize_seq(Some(len))?;
-        for c in self.0.children(self.1) {
-            seq.serialize_element(&ProcessInfoSerializable(c, self.1))?;
-        }
-        seq.end()
-    }
-}
-
-impl Serialize for ProcessTree {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let root_pi = ProcessInfoSerializable(self.root, &self.arena);
-        root_pi.serialize(serializer)
     }
 }
 

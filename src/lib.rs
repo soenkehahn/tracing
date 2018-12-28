@@ -8,27 +8,20 @@ pub mod error;
 mod tracetree;
 
 use self::error::AppResult;
-use self::tracetree::ProcessTree;
-use serde_json::Value;
+use self::tracetree::{ProcessInfo, ProcessTree};
+use indextree::Node;
 use std::process::Command;
 
 pub fn trace(path: &str) -> AppResult<String> {
     let args: Vec<String> = vec![];
     let process_tree = ProcessTree::spawn(Command::new(path), &args)?;
-    let string = serde_json::to_string_pretty(&process_tree)?;
-    let result: Value = serde_json::from_str(&string)?;
-    Ok(result
-        .get("children")
-        .ok_or("no field children")?
-        .get(0)
-        .ok_or("no child")?
-        .get("cmdline")
-        .ok_or("no field cmdline")?
-        .get(0)
-        .ok_or("no cmdline entries")?
-        .as_str()
-        .ok_or("not a string")?
-        .to_string())
+    let mut process_iterator = process_tree.arena.iter();
+    process_iterator.next();
+    let cmdlines: Vec<String> = process_iterator
+        .map(|node: &Node<ProcessInfo>| node.data.cmdline.clone())
+        .flatten()
+        .collect();
+    Ok(cmdlines[0].clone())
 }
 
 #[cfg(test)]

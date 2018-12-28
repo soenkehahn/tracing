@@ -32,6 +32,7 @@ use std::io::Read;
 use std::process::Command;
 use std::ptr;
 
+#[derive(Debug)]
 pub struct ProcessInfo {
     pub pid: pid_t,
     pub ended: bool,
@@ -48,8 +49,9 @@ impl Default for ProcessInfo {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcessTree {
-    arena: Arena<ProcessInfo>,
+    pub arena: Arena<ProcessInfo>,
     root: NodeId,
 }
 

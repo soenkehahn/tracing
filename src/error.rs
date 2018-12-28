@@ -3,7 +3,7 @@ use std::fmt::Debug;
 pub type AppResult<A> = Result<A, AppError>;
 
 #[derive(Debug, PartialEq)]
-pub struct AppError(String);
+pub struct AppError(pub String);
 
 macro_rules! bless {
     ( $error_type:ty ) => {

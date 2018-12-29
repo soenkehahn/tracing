@@ -10,6 +10,7 @@ libc = "0.2.21"
 log = "0.3.6"
 nix = "0.8.1"
 spawn-ptrace = "0.1"
+tempfile = "*"
 
 [features]
 ci = []

@@ -1,5 +1,6 @@
 use crate::error::AppResult;
 use crate::trace;
+use crate::tracetree::ProcessChild;
 
 pub fn run() -> AppResult<()> {
     let executable = std::env::args()
@@ -10,10 +11,17 @@ pub fn run() -> AppResult<()> {
     Ok(())
 }
 
-pub fn format(processes: Vec<String>) -> String {
+pub fn format(commands: Vec<ProcessChild>) -> String {
     let mut result = "spawned child processes:\n".to_string();
-    for process in processes.into_iter() {
-        result.push_str(&format!("  {}\n", process));
+    for command in commands.into_iter() {
+        let mut formatted_arguments = "".to_string();
+        for argument in command.arguments {
+            formatted_arguments += &format!(" {}", argument);
+        }
+        result.push_str(&format!(
+            "  {}{}\n",
+            command.executable, formatted_arguments
+        ));
     }
     result
 }
@@ -26,9 +34,27 @@ mod test {
         use super::*;
 
         #[test]
-        fn format_works() {
-            let input = vec!["foo".to_string(), "bar".to_string()];
+        fn outputs_executables() {
+            let input = vec![
+                ProcessChild {
+                    executable: "foo".to_string(),
+                    arguments: vec![],
+                },
+                ProcessChild {
+                    executable: "bar".to_string(),
+                    arguments: vec![],
+                },
+            ];
             assert_eq!(format(input), "spawned child processes:\n  foo\n  bar\n");
+        }
+
+        #[test]
+        fn outputs_arguments() {
+            let input = vec![ProcessChild {
+                executable: "foo".to_string(),
+                arguments: vec!["bar".to_string(), "baz".to_string()],
+            }];
+            assert_eq!(format(input), "spawned child processes:\n  foo bar baz\n");
         }
     }
 }

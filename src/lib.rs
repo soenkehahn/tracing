@@ -8,10 +8,10 @@ pub mod run;
 mod tracetree;
 
 use crate::error::AppResult;
-use crate::tracetree::ProcessTree;
+use crate::tracetree::{ProcessChild, ProcessTree};
 use std::process::Command;
 
-pub fn trace<Path: AsRef<str>>(path: Path) -> AppResult<Vec<String>> {
+pub fn trace<Path: AsRef<str>>(path: Path) -> AppResult<Vec<ProcessChild>> {
     let args: Vec<String> = vec![];
     let process_tree = ProcessTree::spawn(Command::new(path.as_ref()), &args)?;
     let descendants = process_tree.get_descendants();
@@ -57,16 +57,34 @@ mod test {
         #[test]
         fn returns_a_called_child_process() {
             let script = TestScript::new("/bin/true;");
-            assert_eq!(trace(script.path()), Ok(vec!["/bin/true".to_string()]));
+            match trace(script.path()).unwrap().as_slice() {
+                [ProcessChild { executable, .. }] => assert_eq!(executable, "/bin/true"),
+                _ => panic!(),
+            }
         }
 
         #[test]
         fn returns_multiple_called_child_processes() {
             let script = TestScript::new("/bin/true; /bin/false;");
-            assert_eq!(
-                trace(script.path()),
-                Ok(vec!["/bin/true".to_string(), "/bin/false".to_string()])
-            );
+            match trace(script.path()).unwrap().as_slice() {
+                [ProcessChild { executable: a, .. }, ProcessChild { executable: b, .. }] => {
+                    assert_eq!(a, "/bin/true");
+                    assert_eq!(b, "/bin/false");
+                }
+                _ => panic!(),
+            }
+        }
+
+        #[test]
+        fn includes_process_arguments() {
+            let script = TestScript::new("/bin/echo foo;");
+            match trace(script.path()).unwrap().as_slice() {
+                [ProcessChild { arguments, .. }] => match arguments.as_slice() {
+                    [argument] => assert_eq!(argument, "foo"),
+                    _ => panic!(),
+                },
+                _ => panic!(),
+            }
         }
     }
 }

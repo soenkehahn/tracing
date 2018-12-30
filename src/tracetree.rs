@@ -52,6 +52,20 @@ pub struct ProcessTree {
     pub root: NodeId,
 }
 
+pub struct ProcessChild {
+    pub executable: String,
+    pub arguments: Vec<String>,
+}
+
+impl ProcessChild {
+    fn from_cmdline(input: Vec<String>) -> Option<ProcessChild> {
+        input.split_first().map(|(head, tail)| ProcessChild {
+            executable: head.to_string(),
+            arguments: tail.to_vec(),
+        })
+    }
+}
+
 impl ProcessTree {
     pub fn spawn<T>(mut cmd: Command, cmdline: &[T]) -> AppResult<ProcessTree>
     where
@@ -182,11 +196,13 @@ impl ProcessTree {
         Ok(ProcessTree { arena, root })
     }
 
-    pub fn get_descendants(self) -> Vec<String> {
+    pub fn get_descendants(self) -> Vec<ProcessChild> {
         self.root
             .descendants(&self.arena)
-            .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.cmdline.clone())
-            .flatten()
+            .map(|node_id: NodeId| {
+                ProcessChild::from_cmdline(self.arena.get(node_id).unwrap().data.cmdline.clone())
+            })
+            .filter_map(|x| x)
             .collect()
     }
 }

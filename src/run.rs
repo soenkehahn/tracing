@@ -11,17 +11,14 @@ pub fn run() -> AppResult<()> {
     Ok(())
 }
 
-pub fn format(commands: Vec<ProcessChild>) -> String {
+pub fn format(children: Vec<ProcessChild>) -> String {
     let mut result = "spawned child processes:\n".to_string();
-    for command in commands.into_iter() {
+    for child in children.into_iter() {
         let mut formatted_arguments = "".to_string();
-        for argument in command.arguments {
+        for argument in child.arguments {
             formatted_arguments += &format!(" {}", argument);
         }
-        result.push_str(&format!(
-            "  {}{}\n",
-            command.executable, formatted_arguments
-        ));
+        result.push_str(&format!("  {}{}\n", child.executable, formatted_arguments));
     }
     result
 }

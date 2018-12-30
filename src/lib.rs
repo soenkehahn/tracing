@@ -12,8 +12,7 @@ use crate::tracetree::{ProcessChild, ProcessTree};
 use std::process::Command;
 
 pub fn trace<Path: AsRef<str>>(path: Path) -> AppResult<Vec<ProcessChild>> {
-    let args: Vec<String> = vec![];
-    let process_tree = ProcessTree::spawn(Command::new(path.as_ref()), &args)?;
+    let process_tree = ProcessTree::spawn(Command::new(path.as_ref()))?;
     let descendants = process_tree.get_descendants();
     Ok(descendants)
 }

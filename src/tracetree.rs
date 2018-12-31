@@ -33,7 +33,7 @@ use std::ptr;
 pub struct ProcessInfo {
     pub pid: pid_t,
     pub ended: bool,
-    pub cmdline: Vec<String>,
+    pub process_child: Option<ProcessChild>,
 }
 
 impl Default for ProcessInfo {
@@ -41,8 +41,23 @@ impl Default for ProcessInfo {
         ProcessInfo {
             pid: 0,
             ended: false,
-            cmdline: vec![],
+            process_child: None,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcessChild {
+    pub executable: String,
+    pub arguments: Vec<String>,
+}
+
+impl ProcessChild {
+    fn from_cmdline(input: Vec<String>) -> Option<ProcessChild> {
+        input.split_first().map(|(head, tail)| ProcessChild {
+            executable: head.to_string(),
+            arguments: tail.to_vec(),
+        })
     }
 }
 
@@ -53,10 +68,7 @@ pub struct ProcessTree {
 }
 
 impl ProcessTree {
-    pub fn spawn<T>(mut cmd: Command, cmdline: &[T]) -> AppResult<ProcessTree>
-    where
-        T: AsRef<str>,
-    {
+    pub fn spawn(mut cmd: Command) -> AppResult<ProcessTree> {
         let child = cmd.spawn_ptrace().chain_err("Error spawning process")?;
         let pid = child.id() as pid_t;
         trace!("Spawned process {}", pid);
@@ -68,7 +80,6 @@ impl ProcessTree {
         let mut arena = Arena::new();
         let mut pids = HashMap::new();
         let root = get_or_insert_pid(pid, &mut arena, &mut pids);
-        arena[root].data.cmdline = cmdline.iter().map(|s| s.as_ref().to_string()).collect();
         continue_process(pid, None).chain_err("Error continuing process")?;
         loop {
             if !root.descendants(&arena).any(|node| !arena[node].data.ended) {
@@ -105,16 +116,7 @@ impl ProcessTree {
                             trace!("[{}] {} new process {}", pid, name, new_pid);
                             match pids.get(&pid) {
                                 Some(&parent) => {
-                                    let cmdline = {
-                                        let parent_data = &arena[parent].data;
-                                        if parent_data.cmdline.len() > 1 {
-                                            parent_data.cmdline[..1].to_vec()
-                                        } else {
-                                            vec![]
-                                        }
-                                    };
                                     let child = get_or_insert_pid(new_pid, &mut arena, &mut pids);
-                                    arena[child].data.cmdline = cmdline;
                                     parent.append(child, &mut arena);
                                 }
                                 None => bail(format!(
@@ -138,7 +140,8 @@ impl ProcessTree {
                                                 .collect::<Vec<_>>();
                                             cmdline.pop();
                                             debug!("[{}] exec {:?}", pid, cmdline);
-                                            arena[node].data.cmdline = cmdline;
+                                            arena[node].data.process_child =
+                                                ProcessChild::from_cmdline(cmdline);
                                             Ok(())
                                         })
                                         .chain_err("Couldn't read cmdline")?;
@@ -182,11 +185,11 @@ impl ProcessTree {
         Ok(ProcessTree { arena, root })
     }
 
-    pub fn get_descendants(self) -> Vec<String> {
+    pub fn get_descendants(self) -> Vec<ProcessChild> {
         self.root
             .descendants(&self.arena)
-            .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.cmdline.clone())
-            .flatten()
+            .map(|node_id: NodeId| self.arena.get(node_id).unwrap().data.process_child.clone())
+            .filter_map(|x| x)
             .collect()
     }
 }

@@ -58,7 +58,7 @@ mod test {
             let script = TestScript::new("/bin/true;");
             match trace(script.path()).unwrap().as_slice() {
                 [ProcessChild { executable, .. }] => assert_eq!(executable, "/bin/true"),
-                _ => panic!(),
+                x => panic!(format!("{:?}", x)),
             }
         }
 
@@ -70,7 +70,7 @@ mod test {
                     assert_eq!(a, "/bin/true");
                     assert_eq!(b, "/bin/false");
                 }
-                _ => panic!(),
+                x => panic!(format!("{:?}", x)),
             }
         }
 
@@ -80,9 +80,9 @@ mod test {
             match trace(script.path()).unwrap().as_slice() {
                 [ProcessChild { arguments, .. }] => match arguments.as_slice() {
                     [argument] => assert_eq!(argument, "foo"),
-                    _ => panic!(),
+                    x => panic!(format!("{:?}", x)),
                 },
-                _ => panic!(),
+                x => panic!(format!("{:?}", x)),
             }
         }
     }
